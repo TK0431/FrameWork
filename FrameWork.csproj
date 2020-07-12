@@ -116,6 +116,12 @@
     <Reference Include="Ubiety.Dns.Core, Version=2.2.1.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
       <HintPath>..\AutoTest\packages\MySql.Data.8.0.20\lib\net452\Ubiety.Dns.Core.dll</HintPath>
     </Reference>
+    <Reference Include="WebDriver, Version=3.141.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\AutoTest\packages\Selenium.WebDriver.3.141.0\lib\net45\WebDriver.dll</HintPath>
+    </Reference>
+    <Reference Include="WebDriver.Support, Version=3.141.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\AutoTest\packages\Selenium.Support.3.141.0\lib\net45\WebDriver.Support.dll</HintPath>
+    </Reference>
     <Reference Include="WindowsBase" />
     <Reference Include="Zstandard.Net, Version=1.1.7.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
       <HintPath>..\AutoTest\packages\MySql.Data.8.0.20\lib\net452\Zstandard.Net.dll</HintPath>
@@ -144,6 +150,7 @@
     <Compile Include="Utility\MsgUtility.cs" />
     <Compile Include="Utility\PasswordBoxBindingHelper.cs" />
     <Compile Include="Utility\PictureUtility.cs" />
+    <Compile Include="Utility\SeleniumUtility.cs" />
     <Compile Include="Utility\SqlServerUtiltiy.cs" />
     <Compile Include="Utility\XmlUtility.cs" />
     <Compile Include="VMBase\BaseViewModel.cs" />
@@ -163,7 +170,9 @@
     <Error Condition="!Exists('..\AutoTest\packages\EntityFramework.6.4.4\build\EntityFramework.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\AutoTest\packages\EntityFramework.6.4.4\build\EntityFramework.targets'))" />
     <Error Condition="!Exists('..\AutoTest\packages\Fody.6.1.1\build\Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\AutoTest\packages\Fody.6.1.1\build\Fody.targets'))" />
     <Error Condition="!Exists('..\AutoTest\packages\PropertyChanged.Fody.3.2.8\build\PropertyChanged.Fody.props')" Text="$([System.String]::Format('$(ErrorText)', '..\AutoTest\packages\PropertyChanged.Fody.3.2.8\build\PropertyChanged.Fody.props'))" />
+    <Error Condition="!Exists('..\AutoTest\packages\Selenium.WebDriver.ChromeDriver.83.0.4103.3910\build\Selenium.WebDriver.ChromeDriver.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\AutoTest\packages\Selenium.WebDriver.ChromeDriver.83.0.4103.3910\build\Selenium.WebDriver.ChromeDriver.targets'))" />
   </Target>
   <Import Project="..\AutoTest\packages\EntityFramework.6.4.4\build\EntityFramework.targets" Condition="Exists('..\AutoTest\packages\EntityFramework.6.4.4\build\EntityFramework.targets')" />
   <Import Project="..\AutoTest\packages\Fody.6.1.1\build\Fody.targets" Condition="Exists('..\AutoTest\packages\Fody.6.1.1\build\Fody.targets')" />
+  <Import Project="..\AutoTest\packages\Selenium.WebDriver.ChromeDriver.83.0.4103.3910\build\Selenium.WebDriver.ChromeDriver.targets" Condition="Exists('..\AutoTest\packages\Selenium.WebDriver.ChromeDriver.83.0.4103.3910\build\Selenium.WebDriver.ChromeDriver.targets')" />
 </Project>
