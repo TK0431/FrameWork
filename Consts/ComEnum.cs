@@ -114,6 +114,13 @@ namespace FrameWork.Consts
         W001,
     }
 
+    public enum EnumClickType
+    {
+        TPClick,
+        TPJs,
+        TPAction,
+    }
+
     /// <summary>
     /// 将枚举更新到数据库
     /// </summary>

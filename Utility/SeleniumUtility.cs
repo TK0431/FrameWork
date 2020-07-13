@@ -1,7 +1,9 @@
-﻿using OfficeOpenXml.FormulaParsing.Excel.Functions;
+﻿using FrameWork.Consts;
+using OfficeOpenXml.FormulaParsing.Excel.Functions;
 using OfficeOpenXml.Packaging.Ionic.Zip;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Remote;
 using OpenQA.Selenium.Support.Extensions;
 using OpenQA.Selenium.Support.UI;
@@ -15,11 +17,18 @@ using System.Threading.Tasks;
 
 namespace FrameWork.Utility
 {
+    public struct SuEvent
+    {
+        public string No { get; set; }
+        public string Event { get; set; }
+    }
+
     public class SeleniumUtility
     {
         private ChromeOptions _options;
         private IWebDriver _driver;
         private WebDriverWait _wait;
+        private Dictionary<string, string> _elements;
 
         public SeleniumUtility(int timeouts = 20, int pollingInterval = 500, string type = null)
         {
@@ -44,25 +53,38 @@ namespace FrameWork.Utility
                 PollingInterval = TimeSpan.FromMilliseconds(pollingInterval),
             };
             _wait.IgnoreExceptionTypes(typeof(NoSuchElementException));
+
+            // 清空缓存控件
+            ClearElements();
         }
 
-        public void DoCommand(string command)
+        public void DoCommand(SuEvent se)
         {
-            if (string.IsNullOrWhiteSpace(command)) return;
+            if (string.IsNullOrWhiteSpace(se.Event)) return;
 
-            if (command.StartsWith("$"))
+            if (se.Event.StartsWith("$"))
             {
-                switch (command.GetSuCommand())
+                switch (se.Event.GetSuCommand())
                 {
                     case "$goto":
-                        DoUrl(command.GetSuValue());
+                        DoUrl(se.Event.GetSuValue());
                         break;
                     case "$sleep":
-                        DoSleep(command.GetSuValue());
+                        DoSleep(se.Event.GetSuValue());
                         break;
                     case "$scroll":
-                        DoScroll(command.GetSuValues());
+                        DoScroll(se.Event.GetSuValues());
                         break;
+                    case "$frame":
+                        GoToFrame(GetElement(_elements[se.No]));
+                        break;
+                    case "$outframe":
+                        break;
+                    case "$ifstart":
+                        break;
+                    case "$ifend":
+                        break;
+
                     default:
                         break;
                 }
@@ -72,6 +94,37 @@ namespace FrameWork.Utility
 
             }
         }
+
+        public IWebElement GetElement(string str)
+        {
+            if (string.IsNullOrWhiteSpace(str) || !str.StartsWith("$")) return null;
+
+            switch (str.GetSuCommand())
+            {
+                case "$id":
+                    return FindIdElement(str.GetSuValue());
+                case "$name":
+                    return FindNameElement(str.GetSuValue());
+                case "$link":
+                    return FindLinkElement(str.GetSuValue());
+                case "$cssselect":
+                    return FindCsElement(str.GetSuValue());
+                case "$xpath":
+                    return FindXPathElement(str.GetSuValue());
+                case "$class":
+                    return FindClassElement(str.GetSuValue());
+                case "$linkpart":
+                    return FindLinkPartElement(str.GetSuValue());
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// 清空缓存控件
+        /// </summary>
+        public void ClearElements()
+            => _elements = new Dictionary<string, string>();
 
         /// <summary>
         /// 定向网页
@@ -108,7 +161,7 @@ namespace FrameWork.Utility
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public static void Save(ChromeDriver driver, string path, ScreenshotImageFormat type, bool isFull = false)
+        public static void SavePic(ChromeDriver driver, string path, ScreenshotImageFormat type, bool isFull = false)
         {
             if (isFull)
             {
@@ -181,8 +234,50 @@ namespace FrameWork.Utility
         public IWebElement FindNameElement(string name)
             => _wait.Until(dr => dr.FindElement(By.Name(name)));
 
-        public IWebElement FindNameElement(string name)
-            => _wait.Until(dr => dr.FindElement(By.Name(name)));
+        public IWebElement FindClassElement(string className)
+            => _wait.Until(dr => dr.FindElement(By.ClassName(className)));
+
+        public IWebElement FindLinkElement(string link)
+            => _wait.Until(dr => dr.FindElement(By.LinkText(link)));
+
+        public IWebElement FindCsElement(string select)
+            => _wait.Until(dr => dr.FindElement(By.CssSelector(select)));
+
+        public IWebElement FindLinkPartElement(string link)
+            => _wait.Until(dr => dr.FindElement(By.PartialLinkText(link)));
+
+        public IWebElement FindXPathElement(string path)
+            => _wait.Until(dr => dr.FindElement(By.XPath(path)));
+
+        public void Click(IWebElement element, EnumClickType type = EnumClickType.TPClick)
+        {
+            switch (type)
+            {
+                case EnumClickType.TPClick:
+                    element.Click();
+                    break;
+                case EnumClickType.TPJs:
+                    IJavaScriptExecutor js = (IJavaScriptExecutor)_driver;
+                    js.ExecuteScript("arguments[0].click();", element);
+                    break;
+                case EnumClickType.TPAction:
+                    Actions actions = new Actions(_driver);
+                    actions.MoveToElement(element).Click().Perform();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        public void GoToFrame(IWebElement element)
+        {
+            _driver.SwitchTo().Frame(element);
+        }
+
+        public void GoOutFrame()
+        {
+            _driver.SwitchTo().DefaultContent();
+        }
     }
 
     public static class SeleniumHelper

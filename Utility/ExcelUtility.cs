@@ -10,6 +10,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 
 namespace FrameWork.Utility
 {
@@ -188,6 +189,7 @@ namespace FrameWork.Utility
         public static int LoadData(this ExcelWorksheet sheet, string file, int row = 1, int col = 1)
         {
             ExcelTextFormat format = new ExcelTextFormat();
+            format.Encoding = Encoding.GetEncoding(932);
 
             string[] lens = File.ReadAllLines(file);
 
