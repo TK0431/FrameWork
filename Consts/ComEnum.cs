@@ -114,11 +114,11 @@ namespace FrameWork.Consts
         W001,
     }
 
-    public enum EnumClickType
+    public enum EnumMessageType
     {
-        TPClick,
-        TPJs,
-        TPAction,
+        Info,
+        Warn,
+        Error,
     }
 
     /// <summary>

@@ -1,9 +1,9 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 
-namespace AUTOSYS.Utility
+namespace FrameWork.Utility
 {
-    class PasswordBoxBindingHelper
+    public class PasswordBoxBindingHelper
     {
         public static readonly DependencyProperty PasswordProperty =
             DependencyProperty.RegisterAttached("Password",

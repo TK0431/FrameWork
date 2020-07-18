@@ -18,6 +18,7 @@ namespace FrameWork.Utility
         public const int GW_HWNDNEXT = 0x2;
         public const int WM_GETTEXTLENGTH = 0x0E;
         public const int WM_GETTEXT = 0x0D;
+        public const int MOUSEEVENTF_MOVE = 0x0001;
         public const int MOUSEEVENTF_LEFTDOWN = 0x0002;
         public const int MOUSEEVENTF_LEFTUP = 0x0004;
         public const int WM_SETTEXT = 0x0C;
@@ -258,14 +259,21 @@ namespace FrameWork.Utility
         /// <returns></returns>
         public static IntPtr GetTopParentHwnd(IntPtr hwnd)
         {
-            IntPtr topHwnd = User32Utility.GetDesktopWindow();
-            if (topHwnd == hwnd) return hwnd;
+            List<IntPtr> topList = GetDeskHwnds();
 
-            IntPtr tempHwnd = User32Utility.GetParent(hwnd);
-            while (topHwnd != tempHwnd && tempHwnd != IntPtr.Zero)
+            //IntPtr topHwnd = User32Utility.GetDesktopWindow();
+            //if (topHwnd == hwnd) return hwnd;
+
+            //IntPtr tempHwnd = User32Utility.GetParent(hwnd);
+            //while (topHwnd != tempHwnd && tempHwnd != IntPtr.Zero)
+            //{
+            //    hwnd = tempHwnd;
+            //    tempHwnd = User32Utility.GetParent(hwnd);
+            //}
+
+            while (!topList.Contains(hwnd) && hwnd != IntPtr.Zero)
             {
-                hwnd = tempHwnd;
-                tempHwnd = User32Utility.GetParent(hwnd);
+                hwnd = User32Utility.GetParent(hwnd);
             }
 
             return hwnd;

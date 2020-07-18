@@ -1,6 +1,5 @@
 ﻿using FrameWork.Consts;
-using OfficeOpenXml.FormulaParsing.Excel.Functions;
-using OfficeOpenXml.Packaging.Ionic.Zip;
+using FrameWork.Models;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Interactions;
@@ -10,264 +9,351 @@ using OpenQA.Selenium.Support.UI;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
-using System.Text;
+using System.Net;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace FrameWork.Utility
 {
-    public struct SuEvent
+    public class SeleniumUtility : IDisposable
     {
-        public string No { get; set; }
-        public string Event { get; set; }
-    }
-
-    public class SeleniumUtility
-    {
+        public string SuTime { get; } = DateTime.Now.ToString("yyyyMMddHHmmss");
         private ChromeOptions _options;
         private IWebDriver _driver;
         private WebDriverWait _wait;
-        private Dictionary<string, string> _elements;
+        private Dictionary<string, string> _args = new Dictionary<string, string>();
+        private Dictionary<string, IWebElement> _elements;
+        private Dictionary<string, List<IWebElement>> _listElements;
 
-        public SeleniumUtility(int timeouts = 20, int pollingInterval = 500, string type = null)
+        public SeleniumUtility(int timeouts = 20, int pollingInterval = 500, string type = "")
         {
             _options = new ChromeOptions();
-            // 设置开发者模式启动，该模式下webdriver属性为正常值
+
             _options.AddExcludedArgument("enable-automation");
-            // 提示及禁用扩展插件
-            _options.AddArguments("--test-type", "--ignore-certificate-errors");
-            // 禁掉信息栏
+            _options.AddArguments(new string[2] { "--test-type", "--ignore-certificate-errors" });
+            _options.AddArgument("lang=zh_CN.UTF-8");
+
             _options.AddAdditionalCapability("useAutomationExtension", false);
-            // 关闭黑窗
-            ChromeDriverService cds = ChromeDriverService.CreateDefaultService();
-            cds.HideCommandPromptWindow = true;
-            // 窗体设置
+
+            ChromeDriverService defaultService = ChromeDriverService.CreateDefaultService();
+            defaultService.HideCommandPromptWindow = true;
+
             SetOption(type);
-
-            _driver = new ChromeDriver(cds, _options);
-
-            // 等待设置
-            _wait = new WebDriverWait(_driver, timeout: TimeSpan.FromSeconds(timeouts))
+            _driver = new ChromeDriver(defaultService, _options);
+            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(timeouts))
             {
-                PollingInterval = TimeSpan.FromMilliseconds(pollingInterval),
+                PollingInterval = TimeSpan.FromMilliseconds(pollingInterval)
             };
+
             _wait.IgnoreExceptionTypes(typeof(NoSuchElementException));
 
-            // 清空缓存控件
             ClearElements();
         }
 
-        public void DoCommand(SuEvent se)
+        public void AddArg(string key, string value)
+            => _args.Add(key, value);
+
+        public void DoCommand(SeleniumEvent se)
         {
-            if (string.IsNullOrWhiteSpace(se.Event)) return;
+            ReplaceArgs(se);
 
             if (se.Event.StartsWith("$"))
             {
-                switch (se.Event.GetSuCommand())
+                string suCommand = se.Event.GetSuCommand();
+                if (suCommand == null)
+                    return;
+
+                switch (suCommand)
                 {
+                    case "$findnotelement":
+                        return;
+                    case "$class":
+                    case "$id":
+                    case "$link":
+                    case "$linkpart":
+                    case "$xpath":
+                    case "$name":
+                    case "$cssselect":
+                    case "$tag":
+                        GetElement(se);
+                        return;
+                    case "$xpaths":
+                        GetElements(se);
+                        return;
                     case "$goto":
                         DoUrl(se.Event.GetSuValue());
-                        break;
+                        return;
                     case "$sleep":
                         DoSleep(se.Event.GetSuValue());
+                        return;
+                    case "$outframe":
+                        return;
+                    case "$click":
+                        Click(se);
+                        return;
+                    case "$hmove":
+                        DoHMove(se);
+                        return;
+                    case "$findtext":
+                        DoFindText(se);
+                        break;
+                    case "$findlink":
                         break;
                     case "$scroll":
                         DoScroll(se.Event.GetSuValues());
-                        break;
+                        return;
                     case "$frame":
-                        GoToFrame(GetElement(_elements[se.No]));
-                        break;
-                    case "$outframe":
-                        break;
-                    case "$ifstart":
-                        break;
-                    case "$ifend":
-                        break;
-
+                        GoToFrame(_elements[se.No]);
+                        return;
+                    case "$frameout":
+                        GoOutFrame();
+                        return;
+                    case "$back":
+                        GoToBack();
+                        return;
+                    case "$forward":
+                        GoToForward();
+                        return;
+                    case "$refresh":
+                        GoToBack();
+                        return;
+                    case "$move":
+                        GoToMove(se);
+                        return;
+                    case "$down":
+                        GoToDown(se);
+                        return;
                     default:
-                        break;
+                        return;
                 }
+                return;
             }
             else
             {
-
+                DoKeys(se);
             }
         }
 
-        public IWebElement GetElement(string str)
+        public void GoToBack()
+            => _driver.Navigate().Back();
+
+        public void GoToForward()
+            => _driver.Navigate().Forward();
+
+        public void GoToRefresh()
+            => _driver.Navigate().Refresh();
+
+        public void GoToDown(SeleniumEvent se)
+            => SeleniumHelper.SuDown(Environment.CurrentDirectory + @"\" + SuTime, _elements[se.No].GetAttribute(se.Event.GetSuValue()));
+
+        private void ReplaceArgs(SeleniumEvent se)
         {
-            if (string.IsNullOrWhiteSpace(str) || !str.StartsWith("$")) return null;
-
-            switch (str.GetSuCommand())
+            foreach (string key in _args.Keys)
             {
-                case "$id":
-                    return FindIdElement(str.GetSuValue());
-                case "$name":
-                    return FindNameElement(str.GetSuValue());
-                case "$link":
-                    return FindLinkElement(str.GetSuValue());
-                case "$cssselect":
-                    return FindCsElement(str.GetSuValue());
-                case "$xpath":
-                    return FindXPathElement(str.GetSuValue());
-                case "$class":
-                    return FindClassElement(str.GetSuValue());
-                case "$linkpart":
-                    return FindLinkPartElement(str.GetSuValue());
-                default:
-                    return null;
+                se.Event = se.Event.Replace(key, _args[key]);
             }
         }
 
-        /// <summary>
-        /// 清空缓存控件
-        /// </summary>
+        public void GetElements(SeleniumEvent se)
+        {
+            string[] arr = se.Event.GetSuValues();
+
+            WebDriverWait wait;
+            if (arr.Length == 2)
+            {
+                wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(int.Parse(arr[1])))
+                {
+                    PollingInterval = TimeSpan.FromMilliseconds(500.0)
+                };
+                wait.IgnoreExceptionTypes(typeof(NoSuchElementException));
+            }
+            else
+            {
+                wait = _wait;
+            }
+
+            string suCommand = se.Event.GetSuCommand();
+
+            List<IWebElement> iwebElement = null;
+            switch (suCommand)
+            {
+                case "$class":
+                    //iwebElement = FindClassElement(arr[0], wait);
+                    break;
+                case "$link":
+                    //iwebElement = FindLinkElement(arr[0], wait);
+                    break;
+                case "$linkpart":
+                    //iwebElement = FindLinkPartElement(arr[0], wait);
+                    break;
+                case "$xpaths":
+                    iwebElement = FindXPathElements(arr[0], wait);
+                    break;
+                case "$cssselect":
+                    //iwebElement = FindCsElement(arr[0], wait);
+                    break;
+                case "$tag":
+                    break;
+                default:
+                    return;
+            }
+
+            if (iwebElement != null && iwebElement.Count > 0)
+                _listElements.Add(se.No, iwebElement);
+            else if (wait == _wait)
+            {
+                throw new NoSuchElementException(se.Event);
+            }
+        }
+
+        public void GetElement(SeleniumEvent se)
+        {
+            string[] arr = se.Event.GetSuValues();
+
+            WebDriverWait wait;
+            if (arr.Length == 2)
+            {
+                wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(int.Parse(arr[1])))
+                {
+                    PollingInterval = TimeSpan.FromMilliseconds(500.0)
+                };
+                wait.IgnoreExceptionTypes(typeof(NoSuchElementException));
+            }
+            else
+            {
+                wait = _wait;
+            }
+
+            string suCommand = se.Event.GetSuCommand();
+
+            IWebElement iwebElement = null;
+            try
+            {
+                switch (suCommand)
+                {
+                    case "$id":
+                        iwebElement = FindIdElement(arr[0], wait);
+                        break;
+                    case "$class":
+                        iwebElement = FindClassElement(arr[0], wait);
+                        break;
+                    case "$link":
+                        iwebElement = FindLinkElement(arr[0], wait);
+                        break;
+                    case "$linkpart":
+                        iwebElement = FindLinkPartElement(arr[0], wait);
+                        break;
+                    case "$xpath":
+                        iwebElement = FindXPathElement(arr[0], wait);
+                        break;
+                    case "$name":
+                        iwebElement = FindNameElement(arr[0], wait);
+                        break;
+                    case "$cssselect":
+                        iwebElement = FindCsElement(arr[0], wait);
+                        break;
+                    case "$tag":
+                        iwebElement = FindTagElement(arr[0], wait);
+                        break;
+                    default:
+                        return;
+                }
+            }
+            catch (WebDriverTimeoutException)
+            {
+            }
+
+            if (iwebElement != null)
+                _elements.Add(se.No, iwebElement);
+            else if (wait == _wait)
+            {
+                throw new NoSuchElementException(se.Event);
+            }
+        }
+
+        public void DoKeys(SeleniumEvent se)
+        {
+            _elements[se.No].SendKeys(se.Event);
+        }
+
         public void ClearElements()
-            => _elements = new Dictionary<string, string>();
+        {
+            _elements = new Dictionary<string, IWebElement>();
+            _listElements = new Dictionary<string, List<IWebElement>>();
+        }
 
-        /// <summary>
-        /// 定向网页
-        /// </summary>
-        /// <param name="url"></param>
         public void DoUrl(string url)
-            => _driver.Navigate().GoToUrl(url);
+        {
+            _driver.Navigate().GoToUrl(url);
+        }
 
-        /// <summary>
-        /// 睡眠
-        /// </summary>
-        /// <param name="time"></param>
         public void DoSleep(string time)
-            => Thread.Sleep(int.Parse(time));
+        {
+            Thread.Sleep(int.Parse(time));
+        }
 
-        /// <summary>
-        /// 滚动条从上到下
-        /// </summary>
-        /// <param name="args"></param>
         public void DoScroll(string[] args)
         {
-            int cnt = int.Parse(args[0]);
-            for (int i = 1; i <= cnt; i++)
+            int num = int.Parse(args[0]);
+            for (int index = 1; index <= num; ++index)
             {
-                string jsCode = "window.scrollTo({top: document.body.scrollHeight / " + cnt + " * " + i + ", behavior: \"smooth\"});";
-                IJavaScriptExecutor js1 = (IJavaScriptExecutor)_driver;
-                js1.ExecuteScript(jsCode);
+                ((IJavaScriptExecutor)_driver).ExecuteScript("window.scrollTo({top: document.body.scrollHeight / " + num.ToString() + " * " + index.ToString() + ", behavior: \"smooth\"});", Array.Empty<object>());
                 DoSleep(args[1]);
             }
         }
 
-        /// <summary>
-        /// ASCII
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public static void SavePic(ChromeDriver driver, string path, ScreenshotImageFormat type, bool isFull = false)
+        public void DoFindText(SeleniumEvent se)
         {
-            if (isFull)
-            {
-                var filePath = path;
+            string[] args = se.Event.GetSuValues();
 
-                Dictionary<string, Object> metrics = new Dictionary<string, Object>();
-                metrics["width"] = driver.ExecuteScript("return Math.max(window.innerWidth,document.body.scrollWidth,document.documentElement.scrollWidth)");
-                metrics["height"] = driver.ExecuteScript("return Math.max(window.innerHeight,document.body.scrollHeight,document.documentElement.scrollHeight)");
-                //返回当前显示设备的物理像素分辨率与 CSS 像素分辨率的比率
-                metrics["deviceScaleFactor"] = driver.ExecuteScript("return window.devicePixelRatio");
-                metrics["mobile"] = driver.ExecuteScript("return typeof window.orientation !== 'undefined'");
-                driver.ExecuteChromeCommand("Emulation.setDeviceMetricsOverride", metrics);
-
-                driver.GetScreenshot().SaveAsFile(filePath, ScreenshotImageFormat.Png);
-            }
-            else
-            {
-                Screenshot shot = driver.TakeScreenshot();
-                shot.SaveAsFile(path, type);
-            }
+            List<IWebElement> elements = _wait.Until(d => _elements[args[0]].FindElements(By.TagName(args[1]))).ToList();
+            foreach (IWebElement temp in elements)
+                if (temp.Text.Contains(args[2]))
+                {
+                    _elements.Add(se.No, temp);
+                }
         }
 
-        /// <summary>
-        /// 窗体设置
-        /// </summary>
-        /// <param name="type"></param>
-        public void SetOption(string type)
+        public void DoHMove(SeleniumEvent se)
         {
-            // 设置窗口大小
-            if (type.StartsWith("$size"))
+            if (!_elements.ContainsKey(se.No)) return;
+
+            string[] suValues = se.Event.GetSuValues();
+            Actions actions = new Actions(_driver);
+            actions.ClickAndHold(_elements[se.No]).MoveByOffset(int.Parse(suValues[0]), int.Parse(suValues[1])).Perform();
+            actions.Release(_elements[se.No]);
+        }
+
+        public void Click(SeleniumEvent se)
+        {
+            if (!_elements.ContainsKey(se.No)) return;
+
+            IWebElement element = _elements[se.No];
+
+            if (se.Event.IndexOf(":") <= 0)
             {
-                string[] arr = type.GetSuValues();
-                _driver.Manage().Window.Size = new Size(int.Parse(arr[0]), int.Parse(arr[1]));
-            }
-            // 设置窗口位置
-            else if (type.StartsWith("$point"))
-            {
-                string[] arr = type.GetSuValues();
-                _driver.Manage().Window.Position = new Point(int.Parse(arr[0]), int.Parse(arr[1]));
+                element.Click();
             }
             else
             {
-                switch (type)
+                switch (se.Event.GetSuValue())
                 {
-                    // 全屏窗口(F11)
-                    case "$fullscreen":
-                        _driver.Manage().Window.FullScreen();
+                    case "1":
+                        element.Click();
                         break;
-                    // 最大化窗口(不会阻挡工具栏)
-                    case "$maxscreen":
-                        _driver.Manage().Window.Maximize();
+                    case "2":
+                        ((IJavaScriptExecutor)_driver).ExecuteScript("arguments[0].click();", new object[1] { element });
                         break;
-                    // 最小化窗口
-                    case "$minscreen":
-                        _driver.Manage().Window.Minimize();
-                        break;
-                    // 隐藏窗口
-                    case "$hidescreen":
-                        _options.AddArguments("--headless");
-                        break;
-                    default:
+                    case "3":
+                        new Actions(_driver).MoveToElement(element).Click().Perform();
                         break;
                 }
             }
         }
 
-        public IWebElement FindIdElement(string id)
-            => _wait.Until(dr => dr.FindElement(By.Id(id)));
-
-        public IWebElement FindNameElement(string name)
-            => _wait.Until(dr => dr.FindElement(By.Name(name)));
-
-        public IWebElement FindClassElement(string className)
-            => _wait.Until(dr => dr.FindElement(By.ClassName(className)));
-
-        public IWebElement FindLinkElement(string link)
-            => _wait.Until(dr => dr.FindElement(By.LinkText(link)));
-
-        public IWebElement FindCsElement(string select)
-            => _wait.Until(dr => dr.FindElement(By.CssSelector(select)));
-
-        public IWebElement FindLinkPartElement(string link)
-            => _wait.Until(dr => dr.FindElement(By.PartialLinkText(link)));
-
-        public IWebElement FindXPathElement(string path)
-            => _wait.Until(dr => dr.FindElement(By.XPath(path)));
-
-        public void Click(IWebElement element, EnumClickType type = EnumClickType.TPClick)
-        {
-            switch (type)
-            {
-                case EnumClickType.TPClick:
-                    element.Click();
-                    break;
-                case EnumClickType.TPJs:
-                    IJavaScriptExecutor js = (IJavaScriptExecutor)_driver;
-                    js.ExecuteScript("arguments[0].click();", element);
-                    break;
-                case EnumClickType.TPAction:
-                    Actions actions = new Actions(_driver);
-                    actions.MoveToElement(element).Click().Perform();
-                    break;
-                default:
-                    break;
-            }
-        }
+        public void GoToMove(SeleniumEvent se)
+            => new Actions(_driver).MoveToElement(_elements[se.No]).Perform();
 
         public void GoToFrame(IWebElement element)
         {
@@ -278,98 +364,190 @@ namespace FrameWork.Utility
         {
             _driver.SwitchTo().DefaultContent();
         }
+
+        public void SavePic(string path, ScreenshotImageFormat type, bool isFull = false)
+        {
+            if (isFull)
+            {
+                string str = path;
+                ((ChromeDriver)_driver).ExecuteChromeCommand("Emulation.setDeviceMetricsOverride", new Dictionary<string, object>()
+                {
+                    ["width"] = ((RemoteWebDriver)_driver).ExecuteScript("return Math.max(window.innerWidth,document.body.scrollWidth,document.documentElement.scrollWidth)", Array.Empty<object>()),
+                    ["height"] = ((RemoteWebDriver)_driver).ExecuteScript("return Math.max(window.innerHeight,document.body.scrollHeight,document.documentElement.scrollHeight)", Array.Empty<object>()),
+                    ["deviceScaleFactor"] = ((RemoteWebDriver)_driver).ExecuteScript("return window.devicePixelRatio", Array.Empty<object>()),
+                    ["mobile"] = ((RemoteWebDriver)_driver).ExecuteScript("return typeof window.orientation !== 'undefined'", Array.Empty<object>())
+                });
+                ((RemoteWebDriver)_driver).GetScreenshot().SaveAsFile(str, ScreenshotImageFormat.Png);
+            }
+            else
+                WebDriverExtensions.TakeScreenshot(_driver).SaveAsFile(path, type);
+        }
+
+        public void SetOption(string type = "")
+        {
+            if (type.StartsWith("$size"))
+            {
+                string[] suValues = type.GetSuValues();
+                _driver.Manage().Window.Size = new Size(int.Parse(suValues[0]), int.Parse(suValues[1]));
+            }
+            else if (type.StartsWith("$point"))
+            {
+                string[] suValues = type.GetSuValues();
+                _driver.Manage().Window.Position = new Point(int.Parse(suValues[0]), int.Parse(suValues[1]));
+            }
+            else
+            {
+                switch (type)
+                {
+                    case "$fullscreen":
+                        _driver.Manage().Window.FullScreen();
+                        break;
+                    case "$maxscreen":
+                        _driver.Manage().Window.Maximize();
+                        break;
+                    case "$minscreen":
+                        _driver.Manage().Window.Minimize();
+                        break;
+                    case "$hidescreen":
+                        _options.AddArguments(new string[1] { "--headless" });
+                        break;
+                }
+            }
+        }
+
+        public IWebElement FindIdElement(string id, WebDriverWait wait)
+        {
+            return wait.Until(dr => dr.FindElement(By.Id(id)));
+        }
+
+        public IWebElement FindIdElement(string[] arrs, WebDriverWait wait)
+        {
+            return wait.Until(dr => _elements[arrs[1]].FindElement(By.Id(arrs[2])));
+        }
+
+        public IWebElement FindNameElement(string name, WebDriverWait wait)
+        {
+            return wait.Until(dr => dr.FindElement(By.Name(name)));
+        }
+
+        public IWebElement FindNameElement(string[] arrs, WebDriverWait wait)
+        {
+            return wait.Until(dr => _elements[arrs[1]].FindElement(By.Name(arrs[2])));
+        }
+
+        public IWebElement FindClassElement(string className, WebDriverWait wait)
+        {
+            return wait.Until(dr => dr.FindElement(By.ClassName(className)));
+        }
+
+        public IWebElement FindClassElement(string[] arrs, WebDriverWait wait)
+        {
+            return wait.Until(dr => _elements[arrs[1]].FindElement(By.ClassName(arrs[2])));
+        }
+
+        public IWebElement FindLinkElement(string link, WebDriverWait wait)
+        {
+            return wait.Until(dr => dr.FindElement(By.LinkText(link)));
+        }
+
+        public IWebElement FindLinkElement(string[] arrs, WebDriverWait wait)
+        {
+            return wait.Until(dr => _elements[arrs[1]].FindElement(By.LinkText(arrs[2])));
+        }
+
+        public IWebElement FindCsElement(string select, WebDriverWait wait)
+        {
+            return wait.Until(dr => dr.FindElement(By.CssSelector(select)));
+        }
+
+        public IWebElement FindCsElement(string[] arrs, WebDriverWait wait)
+        {
+            return wait.Until(dr => _elements[arrs[1]].FindElement(By.CssSelector(arrs[2])));
+        }
+
+        public IWebElement FindLinkPartElement(string link, WebDriverWait wait)
+        {
+            return wait.Until(dr => dr.FindElement(By.PartialLinkText(link)));
+        }
+
+        public IWebElement FindLinkPartElement(string[] arrs, WebDriverWait wait)
+        {
+            return wait.Until(dr => _elements[arrs[1]].FindElement(By.PartialLinkText(arrs[2])));
+        }
+
+        public IWebElement FindXPathElement(string path, WebDriverWait wait)
+        {
+            return wait.Until(dr => dr.FindElement(By.XPath(path)));
+        }
+
+        public IWebElement FindXPathElement(string[] arrs, WebDriverWait wait)
+        {
+            return wait.Until(dr => _elements[arrs[1]].FindElement(By.XPath(arrs[2])));
+        }
+
+        public IWebElement FindTagElement(string path, WebDriverWait wait)
+        {
+            return wait.Until(dr => dr.FindElement(By.TagName(path)));
+        }
+
+        public IWebElement FindTagElement(string[] arrs, WebDriverWait wait)
+        {
+            return wait.Until(dr => _elements[arrs[1]].FindElement(By.TagName(arrs[2])));
+        }
+
+        public List<IWebElement> FindXPathElements(string path, WebDriverWait wait)
+        {
+            return wait.Until(dr => dr.FindElements(By.XPath(path))).ToList();
+        }
+
+        public void Dispose()
+        {
+            _driver.Dispose();
+        }
     }
 
     public static class SeleniumHelper
     {
         public static string GetSuCommand(this string command)
         {
-            int index = command.IndexOf(":");
-            if (index <= 0)
-                return command;
-            else
-                return command.Substring(0, index);
+            int length = command.IndexOf(":");
+            return length <= 0 ? command : command.Substring(0, length);
         }
 
         public static string GetSuValue(this string command)
-            => command.Substring(command.IndexOf(":") + 1);
+        {
+            return command.Substring(command.IndexOf(":") + 1);
+        }
 
         public static string[] GetSuValues(this string command)
-            => command.Substring(command.IndexOf(":") + 1).Split(',');
-    }
-
-
-    public class ChromeDriverEx : ChromeDriver
-    {
-        private const string SendChromeCommandWithResult = "sendChromeCommandWithResponse";
-        private const string SendChromeCommandWithResultUrlTemplate = "/session/{sessionId}/chromium/send_command_and_get_result";
-
-        public ChromeDriverEx(string chromeDriverDirectory, ChromeOptions options)
-            : base(chromeDriverDirectory, options)
         {
-            CommandInfo commandInfoToAdd = new CommandInfo(CommandInfo.PostCommand, SendChromeCommandWithResultUrlTemplate);
-            this.CommandExecutor.CommandInfoRepository.TryAddCommand(SendChromeCommandWithResult, commandInfoToAdd);
+            return command.Substring(command.IndexOf(":") + 1).Split(';');
         }
 
-        public ChromeDriverEx(ChromeDriverService service, ChromeOptions options)
-            : base(service, options)
+        public static void SuDown(string path, string url)
         {
-            CommandInfo commandInfoToAdd = new CommandInfo(CommandInfo.PostCommand, SendChromeCommandWithResultUrlTemplate);
-            this.CommandExecutor.CommandInfoRepository.TryAddCommand(SendChromeCommandWithResult, commandInfoToAdd);
-        }
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
 
-        public Screenshot GetFullPageScreenshot()
-        {
+            // 设置参数
+            HttpWebRequest request = WebRequest.Create(url) as HttpWebRequest;
+            //发送请求并获取相应回应数据
+            HttpWebResponse response = request.GetResponse() as HttpWebResponse;
+            //直到request.GetResponse()程序才开始向目标网页发送Post请求
+            Stream responseStream = response.GetResponseStream();
 
-            string metricsScript = @"({
-width: Math.max(window.innerWidth,document.body.scrollWidth,document.documentElement.scrollWidth)|0,
-height: Math.max(window.innerHeight,document.body.scrollHeight,document.documentElement.scrollHeight)|0,
-deviceScaleFactor: window.devicePixelRatio || 1,
-mobile: typeof window.orientation !== 'undefined'
-})";
-            Dictionary<string, object> metrics = this.EvaluateDevToolsScript(metricsScript);
-            this.ExecuteChromeCommand("Emulation.setDeviceMetricsOverride", metrics);
+            //创建本地文件写入流
+            Stream stream = new FileStream(path + $@"\{DateTime.Now:yyyyMMddHHmmss}.xlsx", FileMode.Create);
 
-            Dictionary<string, object> parameters = new Dictionary<string, object>();
-            parameters["format"] = "png";
-            parameters["fromSurface"] = true;
-            object screenshotObject = this.ExecuteChromeCommandWithResult("Page.captureScreenshot", parameters);
-            Dictionary<string, object> screenshotResult = screenshotObject as Dictionary<string, object>;
-            string screenshotData = screenshotResult["data"] as string;
-
-            this.ExecuteChromeCommand("Emulation.clearDeviceMetricsOverride", new Dictionary<string, object>());
-
-            Screenshot screenshot = new Screenshot(screenshotData);
-            return screenshot;
-        }
-
-        public new object ExecuteChromeCommandWithResult(string commandName, Dictionary<string, object> commandParameters)
-        {
-            if (commandName == null)
+            byte[] bArr = new byte[1024];
+            int size = responseStream.Read(bArr, 0, (int)bArr.Length);
+            while (size > 0)
             {
-                throw new ArgumentNullException("commandName", "commandName must not be null");
+                stream.Write(bArr, 0, size);
+                size = responseStream.Read(bArr, 0, (int)bArr.Length);
             }
-
-            Dictionary<string, object> parameters = new Dictionary<string, object>();
-            parameters["cmd"] = commandName;
-            parameters["params"] = commandParameters;
-            Response response = this.Execute(SendChromeCommandWithResult, parameters);
-            return response.Value;
-        }
-
-        private Dictionary<string, object> EvaluateDevToolsScript(string scriptToEvaluate)
-        {
-
-            Dictionary<string, object> parameters = new Dictionary<string, object>();
-            parameters["returnByValue"] = true;
-            parameters["expression"] = scriptToEvaluate;
-            object evaluateResultObject = this.ExecuteChromeCommandWithResult("Runtime.evaluate", parameters);
-            Dictionary<string, object> evaluateResultDictionary = evaluateResultObject as Dictionary<string, object>;
-            Dictionary<string, object> evaluateResult = evaluateResultDictionary["result"] as Dictionary<string, object>;
-
-
-            Dictionary<string, object> evaluateValue = evaluateResult["value"] as Dictionary<string, object>;
-            return evaluateValue;
+            stream.Close();
+            responseStream.Close();
         }
     }
 }

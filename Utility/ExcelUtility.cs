@@ -148,6 +148,11 @@ namespace FrameWork.Utility
         /// <param name="file"></param>
         public void SaveAs(Stream file)
             => _excel.SaveAs(file);
+
+        public void RefreshAll()
+        {
+            _excel.Workbook.FullCalcOnLoad = true;
+        }
     }
 
     public static class ExcelHelper
@@ -208,6 +213,9 @@ namespace FrameWork.Utility
                 sheet.Cells[row, col, row, sheet.GetMaxColumn(row)].SetRangeBorder(Color.DarkGray);
                 sheet.Cells[row, col, row, sheet.GetMaxColumn(row)].SetFontColor(Color.White);
             }
+
+            if (lens.Count() <= 0) return 0;
+            if (lens.Count() == 1 && string.IsNullOrEmpty(lens[0])) return 0;
 
             return lens.Length;
         }
