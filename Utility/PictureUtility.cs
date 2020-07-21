@@ -177,6 +177,7 @@ namespace FrameWork.Utility
                 bmp1.UnlockBits(bd1);
                 bmp2.UnlockBits(bd2);
             }
+
             return rects;
         }
 

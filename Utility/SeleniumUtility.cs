@@ -1,5 +1,5 @@
-﻿using FrameWork.Consts;
-using FrameWork.Models;
+﻿using FrameWork.Models;
+using FrameWork.ViewModels.Base;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Interactions;
@@ -18,16 +18,19 @@ namespace FrameWork.Utility
 {
     public class SeleniumUtility : IDisposable
     {
-        public string SuTime { get; } = DateTime.Now.ToString("yyyyMMddHHmmss");
+        public string SuTime { get; set; } = DateTime.Now.ToString("yyyyMMddHHmmss");
         private ChromeOptions _options;
         private IWebDriver _driver;
         private WebDriverWait _wait;
         private Dictionary<string, string> _args = new Dictionary<string, string>();
         private Dictionary<string, IWebElement> _elements;
         private Dictionary<string, List<IWebElement>> _listElements;
+        private SeleniumBaseViewModel _model;
 
-        public SeleniumUtility(int timeouts = 20, int pollingInterval = 500, string type = "")
+        public SeleniumUtility(SeleniumBaseViewModel model, int timeouts = 20, int pollingInterval = 500, string type = "")
         {
+            _model = model;
+
             _options = new ChromeOptions();
 
             _options.AddExcludedArgument("enable-automation");
@@ -203,7 +206,7 @@ namespace FrameWork.Utility
                 _listElements.Add(se.No, iwebElement);
             else if (wait == _wait)
             {
-                throw new NoSuchElementException(se.Event);
+                throw new NoSuchElementException($"元素不存在[{se.Event}]");
             }
         }
 
@@ -268,7 +271,7 @@ namespace FrameWork.Utility
                 _elements.Add(se.No, iwebElement);
             else if (wait == _wait)
             {
-                throw new NoSuchElementException(se.Event);
+                throw new NoSuchElementException($"元素不存在[{se.Event}]");
             }
         }
 
@@ -495,10 +498,21 @@ namespace FrameWork.Utility
             return wait.Until(dr => _elements[arrs[1]].FindElement(By.TagName(arrs[2])));
         }
 
+        //private IWebElement DoFindEvent(WebDriverWait wait, Func<IWebDriver, IWebElement> func)
+        //{
+
+        //    return wait.Until(dr => { 
+        //        func(dr); });
+
+
+        //}
+
         public List<IWebElement> FindXPathElements(string path, WebDriverWait wait)
         {
             return wait.Until(dr => dr.FindElements(By.XPath(path))).ToList();
         }
+
+
 
         public void Dispose()
         {
