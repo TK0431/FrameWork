@@ -34,7 +34,7 @@ namespace FrameWork.Utility
 
             _options.AddExcludedArgument("enable-automation");
             _options.AddArguments(new string[2] { "--test-type", "--ignore-certificate-errors" });
-            _options.AddArgument("lang=zh_CN.UTF-8");
+            //_options.AddArgument("lang=zh_CN.UTF-8");
 
             _options.AddAdditionalCapability("useAutomationExtension", false);
 

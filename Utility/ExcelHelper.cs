@@ -11,6 +11,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Font = System.Drawing.Font;
 
 namespace FrameWork.Utility
@@ -203,22 +204,29 @@ namespace FrameWork.Utility
             _app.Visible = false;
             _app.Application.ScreenUpdating = false;
             _app.Application.DisplayAlerts = false;
+            LogUtility.WriteInfo($"【透视表】透视表刷新App");
             Workbooks _wkbs = _app.Workbooks;
             _wkbs.Application.ScreenUpdating = false;
             _wkbs.Application.DisplayAlerts = false;
+            LogUtility.WriteInfo($"【透视表】透视表刷新Workbooks");
             Workbook _wkb = _wkbs.Open(path);
             _wkb.Application.ScreenUpdating = false;
             _wkb.Application.CalculateBeforeSave = false;
             _wkb.Application.DisplayAlerts = false;
 
+            LogUtility.WriteInfo($"【透视表】透视表刷新开始");
             foreach (Worksheet sheet in _wkb.Worksheets)
             {
                 foreach (PivotTable pivotTable in sheet.PivotTables())
                 {
                     pivotTable.PivotCache().Refresh();
-                    Marshal.ReleaseComObject(pivotTable);
+
+                    //Marshal.ReleaseComObject(pivotTable);
+                    LogUtility.WriteInfo($"【透视表】透视表刷新完了{pivotTable.Name}");
                 }
             }
+            LogUtility.WriteInfo($"【透视表】透视表刷新结束");
+            Thread.Sleep(1000);
 
             _wkb.Close(SaveChanges: true);
             Marshal.ReleaseComObject(_wkb);
