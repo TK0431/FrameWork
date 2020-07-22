@@ -171,11 +171,11 @@
     <Compile Include="Utility\MsgUtility.cs" />
     <Compile Include="Utility\PasswordBoxBindingHelper.cs" />
     <Compile Include="Utility\PictureUtility.cs" />
+    <Compile Include="Utility\ProcessUtility.cs" />
     <Compile Include="Utility\SeleniumUtility.cs" />
     <Compile Include="Utility\SqlServerUtiltiy.cs" />
     <Compile Include="Utility\XmlUtility.cs" />
     <Compile Include="VMBase\SeleniumBaseViewModel.cs" />
-    <Compile Include="VMBase\BaseViewModel.cs" />
     <Compile Include="VMBase\RelayCommand.cs" />
     <Compile Include="VMBase\RelayTCommand.cs" />
   </ItemGroup>

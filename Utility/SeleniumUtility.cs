@@ -25,11 +25,10 @@ namespace FrameWork.Utility
         private Dictionary<string, string> _args = new Dictionary<string, string>();
         private Dictionary<string, IWebElement> _elements;
         private Dictionary<string, List<IWebElement>> _listElements;
-        private SeleniumBaseViewModel _model;
+        public bool FlgStop { get; set; } = false;
 
-        public SeleniumUtility(SeleniumBaseViewModel model, int timeouts = 20, int pollingInterval = 500, string type = "")
+        public SeleniumUtility(int timeouts = 20, int pollingInterval = 500, string type = "")
         {
-            _model = model;
 
             _options = new ChromeOptions();
 
@@ -57,8 +56,18 @@ namespace FrameWork.Utility
         public void AddArg(string key, string value)
             => _args.Add(key, value);
 
-        public void DoCommand(SeleniumEvent se)
+        public void SetArg(string key, string value)
+            => _args[key] = value;
+
+        public void DoCommand(SeleniumEvent _se)
         {
+            SeleniumEvent se = new SeleniumEvent()
+            {
+                No = _se.No,
+                Event = _se.Event,
+                Back = _se.Back,
+            };
+
             ReplaceArgs(se);
 
             if (se.Event.StartsWith("$"))
@@ -419,100 +428,71 @@ namespace FrameWork.Utility
         }
 
         public IWebElement FindIdElement(string id, WebDriverWait wait)
-        {
-            return wait.Until(dr => dr.FindElement(By.Id(id)));
-        }
+            => DoFindEvent(wait, dr => dr.FindElement(By.Id(id)));
 
         public IWebElement FindIdElement(string[] arrs, WebDriverWait wait)
-        {
-            return wait.Until(dr => _elements[arrs[1]].FindElement(By.Id(arrs[2])));
-        }
+            => DoFindEvent(wait, dr => _elements[arrs[1]].FindElement(By.Id(arrs[2])));
 
         public IWebElement FindNameElement(string name, WebDriverWait wait)
-        {
-            return wait.Until(dr => dr.FindElement(By.Name(name)));
-        }
+            => DoFindEvent(wait, dr => dr.FindElement(By.Name(name)));
 
         public IWebElement FindNameElement(string[] arrs, WebDriverWait wait)
-        {
-            return wait.Until(dr => _elements[arrs[1]].FindElement(By.Name(arrs[2])));
-        }
+            => DoFindEvent(wait, dr => _elements[arrs[1]].FindElement(By.Name(arrs[2])));
 
         public IWebElement FindClassElement(string className, WebDriverWait wait)
-        {
-            return wait.Until(dr => dr.FindElement(By.ClassName(className)));
-        }
+            => DoFindEvent(wait, dr => dr.FindElement(By.ClassName(className)));
 
         public IWebElement FindClassElement(string[] arrs, WebDriverWait wait)
-        {
-            return wait.Until(dr => _elements[arrs[1]].FindElement(By.ClassName(arrs[2])));
-        }
+            => DoFindEvent(wait, dr => _elements[arrs[1]].FindElement(By.ClassName(arrs[2])));
 
         public IWebElement FindLinkElement(string link, WebDriverWait wait)
-        {
-            return wait.Until(dr => dr.FindElement(By.LinkText(link)));
-        }
+            => DoFindEvent(wait, dr => dr.FindElement(By.LinkText(link)));
 
         public IWebElement FindLinkElement(string[] arrs, WebDriverWait wait)
-        {
-            return wait.Until(dr => _elements[arrs[1]].FindElement(By.LinkText(arrs[2])));
-        }
+            => DoFindEvent(wait, dr => _elements[arrs[1]].FindElement(By.LinkText(arrs[2])));
 
         public IWebElement FindCsElement(string select, WebDriverWait wait)
-        {
-            return wait.Until(dr => dr.FindElement(By.CssSelector(select)));
-        }
+            => DoFindEvent(wait, dr => dr.FindElement(By.CssSelector(select)));
 
         public IWebElement FindCsElement(string[] arrs, WebDriverWait wait)
-        {
-            return wait.Until(dr => _elements[arrs[1]].FindElement(By.CssSelector(arrs[2])));
-        }
+            => DoFindEvent(wait, dr => _elements[arrs[1]].FindElement(By.CssSelector(arrs[2])));
 
         public IWebElement FindLinkPartElement(string link, WebDriverWait wait)
-        {
-            return wait.Until(dr => dr.FindElement(By.PartialLinkText(link)));
-        }
+            => DoFindEvent(wait, dr => dr.FindElement(By.PartialLinkText(link)));
 
         public IWebElement FindLinkPartElement(string[] arrs, WebDriverWait wait)
-        {
-            return wait.Until(dr => _elements[arrs[1]].FindElement(By.PartialLinkText(arrs[2])));
-        }
+            => DoFindEvent(wait, dr => _elements[arrs[1]].FindElement(By.PartialLinkText(arrs[2])));
 
         public IWebElement FindXPathElement(string path, WebDriverWait wait)
-        {
-            return wait.Until(dr => dr.FindElement(By.XPath(path)));
-        }
+            => DoFindEvent(wait, dr => dr.FindElement(By.XPath(path)));
 
         public IWebElement FindXPathElement(string[] arrs, WebDriverWait wait)
-        {
-            return wait.Until(dr => _elements[arrs[1]].FindElement(By.XPath(arrs[2])));
-        }
+            => DoFindEvent(wait, dr => _elements[arrs[1]].FindElement(By.XPath(arrs[2])));
 
         public IWebElement FindTagElement(string path, WebDriverWait wait)
-        {
-            return wait.Until(dr => dr.FindElement(By.TagName(path)));
-        }
+            => DoFindEvent(wait, dr => dr.FindElement(By.TagName(path)));
 
         public IWebElement FindTagElement(string[] arrs, WebDriverWait wait)
-        {
-            return wait.Until(dr => _elements[arrs[1]].FindElement(By.TagName(arrs[2])));
-        }
+            => DoFindEvent(wait, dr => _elements[arrs[1]].FindElement(By.TagName(arrs[2])));
 
-        //private IWebElement DoFindEvent(WebDriverWait wait, Func<IWebDriver, IWebElement> func)
-        //{
-
-        //    return wait.Until(dr => { 
-        //        func(dr); });
-
-
-        //}
+        private IWebElement DoFindEvent(WebDriverWait wait, Func<IWebDriver, IWebElement> func)
+        => wait.Until(dr =>
+            {
+                if (FlgStop)
+                    throw new Exception("Stop");
+                return func(dr);
+            });
 
         public List<IWebElement> FindXPathElements(string path, WebDriverWait wait)
-        {
-            return wait.Until(dr => dr.FindElements(By.XPath(path))).ToList();
-        }
+            => DoFindEvent(wait, dr => dr.FindElements(By.XPath(path)));
 
-
+        private List<IWebElement> DoFindEvent(WebDriverWait wait, Func<IWebDriver, IEnumerable<IWebElement>> func)
+            => wait.Until(dr =>
+            {
+                if (FlgStop)
+                    throw new Exception("Stop");
+                return func(dr);
+            }).ToList();
 
         public void Dispose()
         {
