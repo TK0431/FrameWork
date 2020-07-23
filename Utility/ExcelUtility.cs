@@ -8,6 +8,7 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security;
 using System.Text;
 
 namespace FrameWork.Utility
@@ -25,13 +26,27 @@ namespace FrameWork.Utility
         /// <summary>
         /// Ctor
         /// </summary>
-        public ExcelUtility(string excelName)
+        public ExcelUtility(string excelName, string passWord = null)
         {
             // License
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
             // Excel
-            _excel = new ExcelPackage(new FileInfo(excelName));
+            if (string.IsNullOrWhiteSpace(passWord))
+                _excel = new ExcelPackage(new FileInfo(excelName));
+            else
+                try
+                {
+                    _excel = new ExcelPackage(new FileInfo(excelName), passWord);
+                }
+                catch (SecurityException)
+                {
+                    throw new Exception("Err:密码不正确");
+                }
+                catch (InvalidDataException)
+                {
+                    _excel = new ExcelPackage(new FileInfo(excelName));
+                }
         }
 
         /// <summary>

@@ -34,7 +34,7 @@ namespace FrameWork.Utility
 
             _options.AddExcludedArgument("enable-automation");
             _options.AddArguments(new string[2] { "--test-type", "--ignore-certificate-errors" });
-            //_options.AddArgument("lang=zh_CN.UTF-8");
+            _options.AddArgument("lang=zh_CN.UTF-8");
 
             _options.AddAdditionalCapability("useAutomationExtension", false);
 
@@ -116,10 +116,13 @@ namespace FrameWork.Utility
                         DoScroll(se.Event.GetSuValues());
                         return;
                     case "$frame":
-                        GoToFrame(_elements[se.No]);
+                        GoToFrame(se);
                         return;
                     case "$frameout":
                         GoOutFrame();
+                        return;
+                    case "$default":
+                        GoToDefault();
                         return;
                     case "$back":
                         GoToBack();
@@ -367,12 +370,20 @@ namespace FrameWork.Utility
         public void GoToMove(SeleniumEvent se)
             => new Actions(_driver).MoveToElement(_elements[se.No]).Perform();
 
-        public void GoToFrame(IWebElement element)
+        public void GoToFrame(SeleniumEvent se)
         {
-            _driver.SwitchTo().Frame(element);
+            if(!string.IsNullOrWhiteSpace(se.No))
+                _driver.SwitchTo().Frame(_elements[se.No]);
+            else
+                _driver.SwitchTo().Frame(int.Parse(se.Event.GetSuValue()));
         }
 
         public void GoOutFrame()
+        {
+            _driver.SwitchTo().DefaultContent();
+        }
+
+        public void GoToDefault()
         {
             _driver.SwitchTo().DefaultContent();
         }
@@ -502,6 +513,7 @@ namespace FrameWork.Utility
 
     public static class SeleniumHelper
     {
+
         public static string GetSuCommand(this string command)
         {
             int length = command.IndexOf(":");
@@ -515,7 +527,7 @@ namespace FrameWork.Utility
 
         public static string[] GetSuValues(this string command)
         {
-            return command.Substring(command.IndexOf(":") + 1).Split(';');
+            return command.Substring(command.IndexOf(":") + 1).Split('$');
         }
 
         public static void SuDown(string path, string url)
