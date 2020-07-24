@@ -198,42 +198,58 @@ namespace FrameWork.Utility
 
         #endregion
 
-        public static void RefreshPivotTable(string path)
+        public static bool RefreshPivotTable(string path)
         {
-            Application _app = new Application();
-            _app.Visible = false;
-            _app.Application.ScreenUpdating = false;
-            _app.Application.DisplayAlerts = false;
-            LogUtility.WriteInfo($"【透视表】透视表刷新App");
-            Workbooks _wkbs = _app.Workbooks;
-            _wkbs.Application.ScreenUpdating = false;
-            _wkbs.Application.DisplayAlerts = false;
-            LogUtility.WriteInfo($"【透视表】透视表刷新Workbooks");
-            Workbook _wkb = _wkbs.Open(path);
-            _wkb.Application.ScreenUpdating = false;
-            _wkb.Application.CalculateBeforeSave = false;
-            _wkb.Application.DisplayAlerts = false;
+            Application _app = null;
+            Workbooks _wkbs = null;
+            Workbook _wkb = null;
 
-            LogUtility.WriteInfo($"【透视表】透视表刷新开始");
-            foreach (Worksheet sheet in _wkb.Worksheets)
+            try
             {
-                foreach (PivotTable pivotTable in sheet.PivotTables())
+                _app = new Application();
+                _app.Visible = false;
+                _app.Application.ScreenUpdating = false;
+                _app.Application.DisplayAlerts = false;
+                LogUtility.WriteInfo($"【透视表】透视表刷新App");
+                _wkbs = _app.Workbooks;
+                _wkbs.Application.ScreenUpdating = false;
+                _wkbs.Application.DisplayAlerts = false;
+                LogUtility.WriteInfo($"【透视表】透视表刷新Workbooks");
+                _wkb = _wkbs.Open(path);
+                _wkb.Application.ScreenUpdating = false;
+                _wkb.Application.CalculateBeforeSave = false;
+                _wkb.Application.DisplayAlerts = false;
+
+                LogUtility.WriteInfo($"【透视表】透视表刷新开始");
+                foreach (Worksheet sheet in _wkb.Worksheets)
                 {
-                    pivotTable.PivotCache().Refresh();
+                    foreach (PivotTable pivotTable in sheet.PivotTables())
+                    {
+                        pivotTable.PivotCache().Refresh();
 
-                    //Marshal.ReleaseComObject(pivotTable);
-                    LogUtility.WriteInfo($"【透视表】透视表刷新完了{pivotTable.Name}");
+                        //Marshal.ReleaseComObject(pivotTable);
+                        LogUtility.WriteInfo($"【透视表】透视表刷新完了{pivotTable.Name}");
+                    }
                 }
-            }
-            LogUtility.WriteInfo($"【透视表】透视表刷新结束");
-            Thread.Sleep(1000);
+                LogUtility.WriteInfo($"【透视表】透视表刷新结束");
+                Thread.Sleep(1000);
 
-            _wkb.Close(SaveChanges: true);
-            Marshal.ReleaseComObject(_wkb);
-            _wkbs.Close();
-            Marshal.ReleaseComObject(_wkbs);
-            _app.Quit();
-            Marshal.ReleaseComObject(_app);
+                _wkb.Close(SaveChanges: true);
+                _wkbs.Close();
+                _app.Quit();
+
+                return true;
+            }
+            catch (NullReferenceException)
+            {
+                return false;
+            }
+            finally
+            {
+                Marshal.ReleaseComObject(_wkb);
+                Marshal.ReleaseComObject(_wkbs);
+                Marshal.ReleaseComObject(_app);
+            }
         }
     }
 }

@@ -31,6 +31,7 @@ namespace FrameWork.Models
     public class SeleniumEvent
     {
         public string No { get; set; }
+        public string Key { get; set; }
         public string Event { get; set; }
         public string Back { get; set; }
     }

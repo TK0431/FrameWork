@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
-namespace AUTOSYS.Utility
+namespace FrameWork.Utility
 {
     public static class XmlUtility
     {
