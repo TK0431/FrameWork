@@ -70,32 +70,39 @@ namespace FrameWork.Utility
                 Enumerable.Range(0, Regex.Split(lens[0], format.Delimiter.ToString(), RegexOptions.IgnoreCase).Length).ToList().ForEach(x => allTypes.Add(eDataTypes.String));
                 format.DataTypes = allTypes.ToArray();
             }
-            StringBuilder txtAll = new StringBuilder();
+
+            int rowHead = row;
+            //StringBuilder txtAll = new StringBuilder();
             foreach (string len in lens)
             {
                 if (len.StartsWith("\""))
                 {
                     string temp = len.Replace("\",\"", "\0");
                     temp = temp.Substring(0, temp.Length - 1).Substring(1, temp.Length - 2);
-                    txtAll.AppendLine(temp);
+                    //txtAll.AppendLine(temp);
+                    sheet.Cells[row++, col].LoadFromText(temp, format);
                 }
                 else
-                    txtAll.AppendLine(len);
+                    //txtAll.AppendLine(len);
+                    sheet.Cells[row++, col].LoadFromText(len, format);
             }
 
-            sheet.Cells[row, col].LoadFromText(txtAll.ToString(), format);
+            //sheet.Cells[row, col].LoadFromText(txtAll.ToString(), format);
 
             if (lens.Count > 0)
             {
-                sheet.Cells[row, col, row, sheet.GetMaxColumn(row)].SetRangeColor(Color.FromArgb(91, 155, 213));
-                sheet.Cells[row, col, row, sheet.GetMaxColumn(row)].SetRangeBorder(Color.DarkGray);
-                sheet.Cells[row, col, row, sheet.GetMaxColumn(row)].SetFontColor(Color.White);
+                sheet.Cells[rowHead, col, rowHead, sheet.GetMaxColumn(rowHead)].SetRangeColor(Color.FromArgb(91, 155, 213));
+                sheet.Cells[rowHead, col, rowHead, sheet.GetMaxColumn(rowHead)].SetRangeBorder(Color.DarkGray);
+                sheet.Cells[rowHead, col, rowHead, sheet.GetMaxColumn(rowHead)].SetFontColor(Color.White);
             }
 
             if (lens.Count() <= 0) return 0;
             if (lens.Count() == 1 && string.IsNullOrEmpty(lens[0])) return 0;
 
-            return lens.Count;
+            int cnt = lens.Count;
+            lens = null;
+
+            return cnt;
         }
 
         public static int LoadDataText(this ExcelWorksheet sheet, string file, int row = 1, int col = 1)
