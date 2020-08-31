@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\AutoTest\packages\OpenCvSharp3-AnyCPU.4.0.0.20181129\build\OpenCvSharp3-AnyCPU.props" Condition="Exists('..\AutoTest\packages\OpenCvSharp3-AnyCPU.4.0.0.20181129\build\OpenCvSharp3-AnyCPU.props')" />
   <Import Project="..\AutoTest\packages\PropertyChanged.Fody.3.2.8\build\PropertyChanged.Fody.props" Condition="Exists('..\AutoTest\packages\PropertyChanged.Fody.3.2.8\build\PropertyChanged.Fody.props')" />
   <Import Project="..\AutoTest\packages\EntityFramework.6.4.4\build\EntityFramework.props" Condition="Exists('..\AutoTest\packages\EntityFramework.6.4.4\build\EntityFramework.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
@@ -95,6 +96,18 @@
     <Reference Include="NPOI.OpenXmlFormats, Version=2.5.1.0, Culture=neutral, PublicKeyToken=0df73ec7942b34e1, processorArchitecture=MSIL">
       <HintPath>..\AutoTest\packages\NPOI.2.5.1\lib\net45\NPOI.OpenXmlFormats.dll</HintPath>
     </Reference>
+    <Reference Include="OpenCvSharp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6adad1e807fea099, processorArchitecture=MSIL">
+      <HintPath>..\AutoTest\packages\OpenCvSharp3-AnyCPU.4.0.0.20181129\lib\net40\OpenCvSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="OpenCvSharp.Blob, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6adad1e807fea099, processorArchitecture=MSIL">
+      <HintPath>..\AutoTest\packages\OpenCvSharp3-AnyCPU.4.0.0.20181129\lib\net40\OpenCvSharp.Blob.dll</HintPath>
+    </Reference>
+    <Reference Include="OpenCvSharp.Extensions, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6adad1e807fea099, processorArchitecture=MSIL">
+      <HintPath>..\AutoTest\packages\OpenCvSharp3-AnyCPU.4.0.0.20181129\lib\net40\OpenCvSharp.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="OpenCvSharp.UserInterface, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6adad1e807fea099, processorArchitecture=MSIL">
+      <HintPath>..\AutoTest\packages\OpenCvSharp3-AnyCPU.4.0.0.20181129\lib\net40\OpenCvSharp.UserInterface.dll</HintPath>
+    </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="PropertyChanged, Version=3.2.8.0, Culture=neutral, PublicKeyToken=ee3ee20bcf148ddd, processorArchitecture=MSIL">
@@ -158,6 +171,7 @@
     <Compile Include="Models\ExcelScriptModel.cs" />
     <Compile Include="Models\HwndModel.cs" />
     <Compile Include="Models\ItemViewModel.cs" />
+    <Compile Include="Models\OpenCvModel.cs" />
     <Compile Include="Models\SeleniumScriptModel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utility\CheckUtility.cs" />
@@ -177,6 +191,7 @@
     <Compile Include="Utility\LogUtility.cs" />
     <Compile Include="Utility\MouseHook.cs" />
     <Compile Include="Utility\MsgUtility.cs" />
+    <Compile Include="Utility\OpenCvUtility.cs" />
     <Compile Include="Utility\PasswordBoxBindingHelper.cs" />
     <Compile Include="Utility\PictureUtility.cs" />
     <Compile Include="Utility\ProcessUtility.cs" />
@@ -232,6 +247,7 @@
     <Error Condition="!Exists('..\AutoTest\packages\PropertyChanged.Fody.3.2.8\build\PropertyChanged.Fody.props')" Text="$([System.String]::Format('$(ErrorText)', '..\AutoTest\packages\PropertyChanged.Fody.3.2.8\build\PropertyChanged.Fody.props'))" />
     <Error Condition="!Exists('..\AutoTest\packages\Selenium.WebDriver.ChromeDriver.83.0.4103.3910\build\Selenium.WebDriver.ChromeDriver.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\AutoTest\packages\Selenium.WebDriver.ChromeDriver.83.0.4103.3910\build\Selenium.WebDriver.ChromeDriver.targets'))" />
     <Error Condition="!Exists('..\AutoTest\packages\MaterialDesignThemes.3.1.3\build\MaterialDesignThemes.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\AutoTest\packages\MaterialDesignThemes.3.1.3\build\MaterialDesignThemes.targets'))" />
+    <Error Condition="!Exists('..\AutoTest\packages\OpenCvSharp3-AnyCPU.4.0.0.20181129\build\OpenCvSharp3-AnyCPU.props')" Text="$([System.String]::Format('$(ErrorText)', '..\AutoTest\packages\OpenCvSharp3-AnyCPU.4.0.0.20181129\build\OpenCvSharp3-AnyCPU.props'))" />
   </Target>
   <Import Project="..\AutoTest\packages\EntityFramework.6.4.4\build\EntityFramework.targets" Condition="Exists('..\AutoTest\packages\EntityFramework.6.4.4\build\EntityFramework.targets')" />
   <Import Project="..\AutoTest\packages\Fody.6.1.1\build\Fody.targets" Condition="Exists('..\AutoTest\packages\Fody.6.1.1\build\Fody.targets')" />

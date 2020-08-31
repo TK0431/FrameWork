@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace FrameWork.Utility
 {
@@ -26,6 +27,8 @@ namespace FrameWork.Utility
             return default(Color);
         }
     }
+
+
 
     public class MultiValueEqualityConverter : IMultiValueConverter
     {

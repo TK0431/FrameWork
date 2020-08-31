@@ -110,8 +110,11 @@ namespace FrameWork.Utility
         /// </summary>
         /// <param name="sheetName"></param>
         /// <returns></returns>
-        public ExcelWorksheet AddSheet(string sheetName)
-            => _excel.Workbook.Worksheets.Add(sheetName);
+        public ExcelWorksheet AddSheet(string sheetName, string copySheet = null)
+            => copySheet == null ? _excel.Workbook.Worksheets.Add(sheetName) : _excel.Workbook.Worksheets.Add(sheetName, _excel.Workbook.Worksheets[copySheet]);
+
+        public void DelSheet(string sheetName)
+            => _excel.Workbook.Worksheets.Delete(sheetName);
 
         /// <summary>
         /// Add Sheet
@@ -162,5 +165,9 @@ namespace FrameWork.Utility
         public void SaveAs(Stream file)
             => _excel.SaveAs(file);
 
+        public void SaveAs(string file)
+        {
+            _excel.SaveAs(new FileInfo(file));
+        }
     }
 }

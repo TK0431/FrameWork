@@ -67,7 +67,7 @@ namespace FrameWork.Utility
                 if (lens[0].StartsWith("\"")) format.Delimiter = '\0';
 
                 List<eDataTypes> allTypes = new List<eDataTypes>();
-                Enumerable.Range(0, Regex.Split(lens[0], format.Delimiter.ToString(), RegexOptions.IgnoreCase).Length).ToList().ForEach(x => allTypes.Add(eDataTypes.String));
+                Enumerable.Range(0, Regex.Split(lens[0], "\",\"", RegexOptions.IgnoreCase).Length).ToList().ForEach(x => allTypes.Add(eDataTypes.String));
                 format.DataTypes = allTypes.ToArray();
             }
 
@@ -91,9 +91,11 @@ namespace FrameWork.Utility
 
             if (lens.Count > 0)
             {
+                sheet.Cells[rowHead, col, rowHead, sheet.GetMaxColumn(rowHead)].Style.Numberformat.Format = "@";
                 sheet.Cells[rowHead, col, rowHead, sheet.GetMaxColumn(rowHead)].SetRangeColor(Color.FromArgb(91, 155, 213));
                 sheet.Cells[rowHead, col, rowHead, sheet.GetMaxColumn(rowHead)].SetRangeBorder(Color.DarkGray);
                 sheet.Cells[rowHead, col, rowHead, sheet.GetMaxColumn(rowHead)].SetFontColor(Color.White);
+                
             }
 
             if (lens.Count() <= 0) return 0;

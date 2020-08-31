@@ -1,47 +1,117 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FrameWork.Models
 {
     public class SeleniumScriptModel
     {
+        /// <summary>
+        /// 超时(秒)
+        /// </summary>
+        public int OutTime { get; set; } = 20;
+
+        /// <summary>
+        /// 延时(毫秒)
+        /// </summary>
+        public int ReTry { get; set; } = 500;
+
+        /// <summary>
+        /// 导出路径
+        /// </summary>
+        public string OutPath { get; set; } = Environment.CurrentDirectory;
+
+        /// <summary>
+        /// 模板名
+        /// </summary>
+        public string TemplateFile { get; set; }
+
+        /// <summary>
+        /// 模板页
+        /// </summary>
+        public string TemplateSheet { get; set; }
+
+        /// <summary>
+        /// 图开始行
+        /// </summary>
+        public int StartRow { get; set; } = 1;
+
+        /// <summary>
+        /// 图开始列
+        /// </summary>
+        public int StartCol { get; set; } = 1;
+
+        /// <summary>
+        /// 替换参数
+        /// </summary>
+        public Dictionary<string, string> Args { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// WMenu Sheet
+        /// </summary>
         public List<SeleniumOrder> Orders { get; set; } = new List<SeleniumOrder>();
 
+        /// <summary>
+        /// Events
+        /// </summary>
         public Dictionary<string, Dictionary<string, List<SeleniumEvent>>> Events { get; set; } = new Dictionary<string, Dictionary<string, List<SeleniumEvent>>>();
-
-        public List<SeleniumCheckItem> Initems = new List<SeleniumCheckItem>();
-
-        public List<SeleniumCheckItem> Outitems = new List<SeleniumCheckItem>();
     }
 
+    /// <summary>
+    /// WMenu Sheet
+    /// </summary>
     public class SeleniumOrder
     {
+        /// <summary>
+        /// 导出文件
+        /// </summary>
+        public string File { get; set; }
+
+        /// <summary>
+        /// Case
+        /// </summary>
         public string Case { get; set; }
 
-        public string View { get; set; }
+        /// <summary>
+        /// Sheet名
+        /// </summary>
+        public string Sid { get; set; }
 
-        public string ViewName { get; set; }
+        /// <summary>
+        /// 备考
+        /// </summary>
+        public string Back { get; set; }
 
-        public string Event { get; set; }
+        /// <summary>
+        /// 参数
+        /// </summary>
+        public Dictionary<string, string> Args { get; set; } = new Dictionary<string, string>();
     }
 
     public class SeleniumEvent
     {
+        /// <summary>
+        /// No
+        /// </summary>
         public string No { get; set; }
-        public string Key { get; set; }
-        public string Event { get; set; }
-        public string Back { get; set; }
-    }
 
-    public class SeleniumCheckItem
-    {
-        public int col1 { get; set; }
-        public string name1 { get; set; }
+        /// <summary>
+        /// Key
+        /// </summary>
+        public string Id { get; set; }
 
-        public int col2 { get; set; }
-        public string name2 { get; set; }
+        /// <summary>
+        /// Cmd
+        /// </summary>
+        public string Cmd { get; set; }
+
+        /// <summary>
+        /// 值
+        /// </summary>
+        public string Value { get; set; }
+
+        /// <summary>
+        /// 框
+        /// </summary>
+        public string Range { get; set; }
     }
 }

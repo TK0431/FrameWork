@@ -17,99 +17,124 @@ namespace FrameWork.Utility
 {
     public class SeleniumUtility : IDisposable
     {
-        public string SuTime { get; set; } = DateTime.Now.ToString("yyyyMMddHHmmss");
         private ChromeOptions _options;
         private IWebDriver _driver;
         private WebDriverWait _wait;
-        private Dictionary<string, string> _args = new Dictionary<string, string>();
-        private Dictionary<string, IWebElement> _elements;
+        // Event 控件
+        public Dictionary<string, IWebElement> _elements { get; set; }
+        // 框 控件
+        private List<SeleniumEvent> _logs;
+        // 当前Order
+        public SeleniumOrder _order;
+        // 图片ID
+        private int _id;
 
         public bool FlgStop { get; set; } = false;
 
-        public SeleniumUtility(int timeouts = 20, int pollingInterval = 500, string type = "")
+        public SeleniumUtility(SeleniumScriptModel model)
         {
+            // 设置
             _options = new ChromeOptions();
-
             _options.AddExcludedArgument("enable-automation");
             _options.AddArguments(new string[2] { "--test-type", "--ignore-certificate-errors" });
-            _options.AddArgument("lang=zh_CN.UTF-8");
-
+            //_options.AddArgument("lang=zh_CN.UTF-8");
+            //_options.AddArgument(@"--user-data-dir=C:\Users\dhc\AppData\Local\Google\Chrome\User Data\Default");
+            //_options.AddArgument(@"--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36");
+            //_options.AddArgument("--flag-switches-begin");
+            //_options.AddArgument("--flag-switches-end");
+            _options.AddArgument("--enable-audio-service-sandbox");
             _options.AddAdditionalCapability("useAutomationExtension", false);
 
+            // 黑框非表示
             ChromeDriverService defaultService = ChromeDriverService.CreateDefaultService();
             defaultService.HideCommandPromptWindow = true;
 
-            SetOption(type);
+            // Set
             _driver = new ChromeDriver(defaultService, _options);
-            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(timeouts))
+            // Wait
+            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(model.OutTime))
             {
-                PollingInterval = TimeSpan.FromMilliseconds(pollingInterval)
+                PollingInterval = TimeSpan.FromMilliseconds(model.ReTry)
             };
-
             _wait.IgnoreExceptionTypes(typeof(NoSuchElementException));
 
-            ClearElements();
+            // Out Path
+            if (!string.IsNullOrWhiteSpace(model.OutPath) && !Directory.Exists(model.OutPath))
+                Directory.CreateDirectory(model.OutPath);
         }
 
-        public void AddArg(string key, string value)
-            => _args.Add(key, value);
-
-        public void SetArg(string key, string value)
-            => _args[key] = value;
-
-        public void DoEvents(List<SeleniumEvent> events,ref string continuEvent)
+        //public void DoEvents(string eve, List<SeleniumEvent> events,ref string continuEvent)
+        public void DoEvents(SeleniumScriptModel model)
         {
-            string gotNo = null;
-            do
+            foreach (SeleniumOrder item in model.Orders)
             {
-                foreach (SeleniumEvent item in events)
+                LogUtility.WriteInfo($"【Order开始】-【{item.File}-{item.Case}-{item.Sid}-{item.Back}】");
+
+                // 初期
+                _order = item;
+                _elements = new Dictionary<string, IWebElement>();
+                _logs = new List<SeleniumEvent>();
+                _id = 1;
+                string goNo = null;
+
+                for (int i = 0; i < model.Events[_order.Sid][_order.Case].Count();)
                 {
                     if (FlgStop) throw new Exception("Stop");
 
-                    if (!string.IsNullOrWhiteSpace(continuEvent))
-                    {
-                        if (item.Back != continuEvent)
-                            continue;
-                        else
-                            continuEvent = null;
-                    }
+                    SeleniumEvent temp = model.Events[_order.Sid][_order.Case][i];
 
-                    if (!string.IsNullOrWhiteSpace(gotNo))
-                    {
-                        if (item.No == gotNo)
-                            gotNo = null;
-                        else
-                            continue;
-                    }
+                    // Skip
+                    if (string.IsNullOrWhiteSpace(temp.Cmd) && string.IsNullOrWhiteSpace(temp.Value))
+                        continue;
 
-                    SeleniumEvent temp = new SeleniumEvent()
+                    SeleniumEvent se = new SeleniumEvent()
                     {
-                        No = item.No,
-                        Key = item.Key,
-                        Event = item.Event,
-                        Back = item.Back,
+                        No = temp.No,
+                        Id = temp.Id,
+                        Cmd = temp.Cmd,
+                        Value = temp.Value,
+                        Range = temp.Range,
                     };
 
-                    ReplaceArgs(temp);
+                    // Replace Args
+                    if (se.Value.Contains("$"))
+                        model.Args.Keys.ToList().ForEach(k => se.Value = se.Value.Replace(k, model.Args[k]));
 
-                    gotNo = DoCommand(temp);
+                    // Do Event
+                    goNo = DoCommand(model, se);
 
-                    LogUtility.WriteInfo($"【Event执行成功】-【{item.Key}-{item.Event}】");
+                    // Add Range
+                    if (!string.IsNullOrWhiteSpace(se.Range))
+                        _logs.Add(se);
 
-                    if (!string.IsNullOrWhiteSpace(gotNo)) break;
+                    // Log
+                    LogUtility.WriteInfo($"【Event执行成功】-【{se.Id}-{se.Value}】");
+
+                    // Next
+                    if (string.IsNullOrWhiteSpace(goNo))
+                        i++;
+                    else
+                        for (int j = 0; j < model.Events[_order.Sid][_order.Case].Count(); j++)
+                            if (goNo == model.Events[_order.Sid][_order.Case][j].No)
+                            {
+                                i = j;
+                                goNo = null;
+                                break;
+                            }
                 }
-            } while (!string.IsNullOrEmpty(gotNo));
+
+                LogUtility.WriteInfo($"【Order终了】-【{item.File}-{item.Case}-{item.Sid}-{item.Back}】");
+            }
         }
 
-        public string DoCommand(SeleniumEvent se)
+        public string DoCommand(SeleniumScriptModel model, SeleniumEvent se)
         {
-            if (se.Event.StartsWith("$"))
+            if (se.Cmd.StartsWith("$"))
             {
-                string suCommand = se.Event.GetSuCommand();
-
-                switch (suCommand)
+                switch (se.Cmd)
                 {
-                    case "$findnotelement":
+                    case "$pic":
+                        GetPic(model.OutPath);
                         break;
                     case "$class":
                     case "$id":
@@ -123,10 +148,11 @@ namespace FrameWork.Utility
                     case "$goto":
                         DoUrl(se);
                         break;
+                    case "$win":
+                        DoWin(se);
+                        break;
                     case "$sleep":
                         DoSleep(se);
-                        break;
-                    case "$outframe":
                         break;
                     case "$click":
                         Click(se);
@@ -152,11 +178,14 @@ namespace FrameWork.Utility
                     case "$refresh":
                         GoToRefresh();
                         break;
-                    case "$mov nulle":
+                    case "$move":
                         GoToMove(se);
                         break;
                     case "$down":
-                        GoToDown(se);
+                        GoToDown(model, se);
+                        break;
+                    case "$maxscreen":
+                        WinMax();
                         break;
                     default:
                         break;
@@ -170,6 +199,43 @@ namespace FrameWork.Utility
             return null;
         }
 
+        private void WinMax()
+            => _driver.Manage().Window.Maximize();
+
+        public void GetPic(string basePath)
+        {
+            // Path Check
+            string path = basePath + @"\pics\" + _order.Case;
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
+
+            // Range Add
+            List<string> lines = new List<string>();
+            foreach (SeleniumEvent item in _logs)
+            {
+                if (_elements.ContainsKey(item.Id))
+                    lines.Add(
+                        _order.Case + ";" +
+                        _id + ";" +
+                        _elements[item.Id].Location.X + ";" +
+                        _elements[item.Id].Location.Y + ";" +
+                        _elements[item.Id].Size.Width + ";" +
+                        _elements[item.Id].Size.Height + ";" +
+                        item.Range
+                    );
+            }
+
+            // Add pic
+            SavePic(path + @"\" + _id++ + ".jpg");
+
+            // Add log
+            if (lines.Count > 0)
+                File.AppendAllLines(basePath + @"\pics\log.txt", lines);
+
+            // Clear
+            _logs = new List<SeleniumEvent>();
+        }
+
         public void GoToBack()
             => _driver.Navigate().Back();
 
@@ -179,15 +245,12 @@ namespace FrameWork.Utility
         public void GoToRefresh()
             => _driver.Navigate().Refresh();
 
-        public void GoToDown(SeleniumEvent se)
-            => SeleniumHelper.SuDown(Environment.CurrentDirectory + @"\" + SuTime, _elements[se.Key].GetAttribute(se.Event.GetSuValue()));
-
-        private void ReplaceArgs(SeleniumEvent se)
-            => _args.Keys.ToList().ForEach(k => se.Event = se.Event.Replace(k, _args[k]));
+        public void GoToDown(SeleniumScriptModel model, SeleniumEvent se)
+            => SeleniumHelper.SuDown(model.OutPath + @"\down", _elements[se.Id].GetAttribute(se.Value));
 
         public string GetElement(SeleniumEvent se)
         {
-            string[] arr = se.Event.GetSuValues();
+            string[] arr = se.Value.GetSuValues();
 
             WebDriverWait wait;
             if (arr.Length >= 2)
@@ -201,12 +264,10 @@ namespace FrameWork.Utility
             else
                 wait = _wait;
 
-            string suCommand = se.Event.GetSuCommand();
-
             IWebElement iwebElement = null;
             try
             {
-                switch (suCommand)
+                switch (se.Cmd)
                 {
                     case "$id":
                         iwebElement = FindIdElement(arr[0], wait);
@@ -238,45 +299,85 @@ namespace FrameWork.Utility
             }
             catch (WebDriverTimeoutException) { }
 
+            // Add Element
             if (iwebElement != null)
             {
-                if (_elements.ContainsKey(se.Key))
-                    _elements[se.Key] = iwebElement;
+                if (_elements.ContainsKey(se.Id))
+                    _elements[se.Id] = iwebElement;
                 else
-                    _elements.Add(se.Key, iwebElement);
+                    _elements.Add(se.Id, iwebElement);
             }
             else if (wait == _wait)
             {
-                FlgStop = true;
-                throw new NoSuchElementException($"查找失败[{se.Event}]");
+                throw new NoSuchElementException($"查找失败[{se.Cmd}]-[{se.Value}]");
             }
 
-            if (arr.Length == 3 && iwebElement != null)
+            // value;outtime;find go to;not find go to
+            if (arr.Length >= 3 && iwebElement != null)
                 return arr[2];
-            if (arr.Length == 4 && iwebElement == null)
+            if (arr.Length >= 4 && iwebElement == null)
                 return arr[3];
             else
                 return null;
         }
 
-        public void DoKeys(SeleniumEvent se)
-            => _elements[se.Key].SendKeys(se.Event);
+        public IWebElement GetElement(string type, string value)
+        {
+            switch (type)
+            {
+                case "$id":
+                    return FindIdElement(value);
+                case "$class":
+                    return FindClassElement(value);
+                case "$link":
+                    return FindLinkElement(value);
+                case "$linkpart":
+                    return FindLinkPartElement(value);
+                case "$xpath":
+                    return FindXPathElement(value);
+                case "$name":
+                    return FindNameElement(value);
+                case "$cssselect":
+                    return FindCsElement(value);
+                case "$tag":
+                    return FindTagElement(value);
+                    break;
+                default:
+                    return null;
+            }
+        }
 
-        public void ClearElements()
-            => _elements = new Dictionary<string, IWebElement>();
+        public void DoKeys(SeleniumEvent se)
+            => _elements[se.Id].SendKeys(se.Value);
 
         public void DoUrl(SeleniumEvent se)
-            => _driver.Navigate().GoToUrl(se.Event.GetSuValue());
+            => _driver.Navigate().GoToUrl(se.Value);
+
+        public void DoWin(SeleniumEvent se, int cnt = 1)
+        {
+            foreach (string winHandle in _driver.WindowHandles)
+            {
+                _driver.SwitchTo().Window(winHandle);
+
+                if (_driver.Title.Contains(se.Value))
+                    return;
+            }
+
+            if (cnt > 10)
+                throw new NoSuchElementException($"查找失败[{se.Cmd}]-[{se.Value}]");
+            else
+                DoWin(se, cnt++);
+        }
 
         public void DoSleep(SeleniumEvent se)
-            => DoSleep(se.Event.GetSuValue());
+            => DoSleep(se.Value);
 
         public void DoSleep(string time)
             => Thread.Sleep(int.Parse(time));
 
         public void DoScroll(SeleniumEvent se)
         {
-            string[] args = se.Event.GetSuValues();
+            string[] args = se.Value.GetSuValues();
             int num = int.Parse(args[0]);
             for (int index = 1; index <= num; ++index)
             {
@@ -287,56 +388,49 @@ namespace FrameWork.Utility
 
         public void DoHMove(SeleniumEvent se)
         {
-            if (!_elements.ContainsKey(se.Key)) return;
+            if (!_elements.ContainsKey(se.Id)) return;
 
-            string[] suValues = se.Event.GetSuValues();
+            string[] suValues = se.Value.GetSuValues();
             Actions actions = new Actions(_driver);
-            actions.ClickAndHold(_elements[se.Key]).MoveByOffset(int.Parse(suValues[0]), int.Parse(suValues[1])).Perform();
-            actions.Release(_elements[se.Key]);
+            actions.ClickAndHold(_elements[se.Id]).MoveByOffset(int.Parse(suValues[0]), int.Parse(suValues[1])).Perform();
+            actions.Release(_elements[se.Id]);
         }
 
         public void Click(SeleniumEvent se)
         {
-            if (!_elements.ContainsKey(se.Key)) return;
+            if (!_elements.ContainsKey(se.Id)) return;
 
-            IWebElement element = _elements[se.Key];
+            IWebElement element = _elements[se.Id];
 
-            if (se.Event.IndexOf(":") <= 0)
+            switch (se.Value)
             {
-                element.Click();
-            }
-            else
-            {
-                switch (se.Event.GetSuValue())
-                {
-                    case "1":
-                        element.Click();
-                        break;
-                    case "2":
-                        ((IJavaScriptExecutor)_driver).ExecuteScript("arguments[0].click();", new object[1] { element });
-                        break;
-                    case "3":
-                        new Actions(_driver).MoveToElement(element).Click().Perform();
-                        break;
-                }
+                case "2":
+                    ((IJavaScriptExecutor)_driver).ExecuteScript("arguments[0].click();", new object[1] { element });
+                    break;
+                case "3":
+                    new Actions(_driver).MoveToElement(element).Click().Perform();
+                    break;
+                default:
+                    element.Click();
+                    break;
             }
         }
 
         public void GoToMove(SeleniumEvent se)
-            => new Actions(_driver).MoveToElement(_elements[se.Key]).Perform();
+            => new Actions(_driver).MoveToElement(_elements[se.Id]).Perform();
 
         public void GoToFrame(SeleniumEvent se)
         {
-            if (!string.IsNullOrWhiteSpace(se.Key))
-                _driver.SwitchTo().Frame(_elements[se.Key]);
+            if (!string.IsNullOrWhiteSpace(se.Id))
+                _driver.SwitchTo().Frame(_elements[se.Id]);
             else
-                _driver.SwitchTo().Frame(int.Parse(se.Event.GetSuValue()));
+                _driver.SwitchTo().Frame(int.Parse(se.Value));
         }
 
         public void GoOutFrame()
             => _driver.SwitchTo().DefaultContent();
 
-        public void SavePic(string path, ScreenshotImageFormat type, bool isFull = false)
+        public void SavePic(string path, ScreenshotImageFormat type = ScreenshotImageFormat.Jpeg, bool isFull = false)
         {
             if (isFull)
             {
@@ -389,26 +483,50 @@ namespace FrameWork.Utility
         public IWebElement FindIdElement(string id, WebDriverWait wait)
             => DoFindEvent(wait, dr => dr.FindElement(By.Id(id)));
 
+        public IWebElement FindIdElement(string id)
+            => _driver.FindElement(By.Id(id));
+
         public IWebElement FindNameElement(string name, WebDriverWait wait)
             => DoFindEvent(wait, dr => dr.FindElement(By.Name(name)));
+
+        public IWebElement FindNameElement(string name)
+            => _driver.FindElement(By.Name(name));
 
         public IWebElement FindClassElement(string className, WebDriverWait wait)
             => DoFindEvent(wait, dr => dr.FindElement(By.ClassName(className)));
 
+        public IWebElement FindClassElement(string className)
+             => _driver.FindElement(By.ClassName(className));
+
         public IWebElement FindLinkElement(string link, WebDriverWait wait)
             => DoFindEvent(wait, dr => dr.FindElement(By.LinkText(link)));
+
+        public IWebElement FindLinkElement(string link)
+             => _driver.FindElement(By.LinkText(link));
 
         public IWebElement FindCsElement(string select, WebDriverWait wait)
             => DoFindEvent(wait, dr => dr.FindElement(By.CssSelector(select)));
 
+        public IWebElement FindCsElement(string select)
+            => _driver.FindElement(By.CssSelector(select));
+
         public IWebElement FindLinkPartElement(string link, WebDriverWait wait)
             => DoFindEvent(wait, dr => dr.FindElement(By.PartialLinkText(link)));
+
+        public IWebElement FindLinkPartElement(string link)
+            => _driver.FindElement(By.PartialLinkText(link));
 
         public IWebElement FindXPathElement(string path, WebDriverWait wait)
             => DoFindEvent(wait, dr => dr.FindElement(By.XPath(path)));
 
+        public IWebElement FindXPathElement(string path)
+            => _driver.FindElement(By.XPath(path));
+
         public IWebElement FindTagElement(string path, WebDriverWait wait)
             => DoFindEvent(wait, dr => dr.FindElement(By.TagName(path)));
+
+        public IWebElement FindTagElement(string path)
+            => _driver.FindElement(By.TagName(path));
 
         private IWebElement DoFindEvent(WebDriverWait wait, Func<IWebDriver, IWebElement> func)
         => wait.Until(dr =>
@@ -423,21 +541,9 @@ namespace FrameWork.Utility
 
     public static class SeleniumHelper
     {
-
-        public static string GetSuCommand(this string command)
-        {
-            int length = command.IndexOf(":");
-            return length <= 0 ? command : command.Substring(0, length);
-        }
-
-        public static string GetSuValue(this string command)
-        {
-            return command.Substring(command.IndexOf(":") + 1);
-        }
-
         public static string[] GetSuValues(this string command)
         {
-            return command.Substring(command.IndexOf(":") + 1).Split('$');
+            return command.Split(';');
         }
 
         public static void SuDown(string path, string url)
